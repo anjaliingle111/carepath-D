@@ -1,0 +1,6 @@
+# Ignore large files and unnecessary artifacts
+# Ignore large files and artifacts
+models/
+src/models/
+data/processed.csv
+src/mlruns/
