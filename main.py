@@ -1,3 +1,4 @@
+
 import os
 import joblib
 import optuna
@@ -8,7 +9,11 @@ from sklearn.metrics import f1_score
 
 
 def load_data():
-    df = pd.read_csv("data/processed.csv")
+    import os
+
+    csv_path = "data/processed_sample.csv" if os.getenv("CI") == "true" else "data/processed.csv"
+    df = pd.read_csv(csv_path)
+
     X = df.drop("readmitted", axis=1)
     y = df["readmitted"]
     return train_test_split(X, y, test_size=0.2, random_state=42)
