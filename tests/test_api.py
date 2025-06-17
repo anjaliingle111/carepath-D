@@ -1,4 +1,11 @@
 # tests/test_api.py
+import sys
+import os
+
+# Add root directory to the Python path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from app import app
 
 from fastapi.testclient import TestClient
 from app import app
