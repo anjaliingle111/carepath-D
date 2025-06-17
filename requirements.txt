@@ -7,4 +7,5 @@ optuna
 category_encoders
 pytest
 httpx
+gdown
 
