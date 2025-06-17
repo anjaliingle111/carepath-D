@@ -6,43 +6,39 @@ import os
 import sys
 import gdown
 
-# Add src to path
-sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
-from preprocessing import preprocess_data
-
-app = FastAPI()
-
-# Paths
+# Setup paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODELS_DIR = os.path.join(BASE_DIR, "models")
 os.makedirs(MODELS_DIR, exist_ok=True)
 
+# Google Drive File IDs
+GDRIVE_FILES = {
+    "final_random_forest.pkl": "1PfuiFk_lyCJ4aqPcyvsCrNLK9Cr6cO2_",
+    "model_columns.pkl": "1DjNUvXHXC-VLprxk_-aKns10rXWlbWwA",
+    "target_encoder.pkl": "1hqlt69U4H3sf1b3wGhKCQ-W0QcT6YKHk",
+}
+
+# Download missing files
+for filename, file_id in GDRIVE_FILES.items():
+    path = os.path.join(MODELS_DIR, filename)
+    if not os.path.exists(path):
+        gdown.download(f"https://drive.google.com/uc?id={file_id}", path, quiet=False)
+
+# Load model artifacts
 MODEL_PATH = os.path.join(MODELS_DIR, "final_random_forest.pkl")
 COLUMNS_PATH = os.path.join(MODELS_DIR, "model_columns.pkl")
-ENCODER_PATH = os.path.join(MODELS_DIR, "target_encoder.pkl")  # Optional if needed
+ENCODER_PATH = os.path.join(MODELS_DIR, "target_encoder.pkl")
 
-# Google Drive links
-MODEL_URL = "https://drive.google.com/uc?id=1PfuiFk_lyCJ4aqPcyvsCrNLK9Cr6cO2_"
-# Add these if needed
-# COLUMNS_URL = "..."
-# ENCODER_URL = "..."
-
-# Download function
-def download_if_missing(filepath, url):
-    if not os.path.exists(filepath):
-        print(f"Downloading {os.path.basename(filepath)}...")
-        gdown.download(url, filepath, quiet=False)
-
-# Ensure all required files are present
-download_if_missing(MODEL_PATH, MODEL_URL)
-# download_if_missing(COLUMNS_PATH, COLUMNS_URL)
-# download_if_missing(ENCODER_PATH, ENCODER_URL)
-
-# Load model and metadata
 model = joblib.load(MODEL_PATH)
 model_columns = joblib.load(COLUMNS_PATH)
 
-# Input Schema
+# Include preprocessing
+sys.path.append(os.path.join(BASE_DIR, "src"))
+from preprocessing import preprocess_data
+
+app = FastAPI()
+
+# Input schema
 class PatientData(BaseModel):
     race: str
     gender: str
@@ -90,13 +86,13 @@ class PatientData(BaseModel):
     change: str
     diabetesMed: str
 
-# Prediction route
 @app.post("/predict")
 def predict(data: PatientData):
     try:
+        # Use model_dump() for Pydantic v2 compatibility
         input_df = pd.DataFrame([data.model_dump()])
 
-        # Preprocess for inference
+        # Preprocess
         X = preprocess_data(input_df, training=False)
 
         # Predict
