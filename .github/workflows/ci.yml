@@ -9,8 +9,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      CI: true
 
     steps:
     - name: Checkout code
@@ -26,6 +24,8 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
+    - name: Train model
+      run: python main.py
+
     - name: Run tests
-      run: |
-        pytest
+      run: pytest
