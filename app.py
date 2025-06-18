@@ -6,6 +6,8 @@ import os
 import sys
 import gdown
 
+app = FastAPI()
+
 # Setup paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODELS_DIR = os.path.join(BASE_DIR, "models")
@@ -18,25 +20,10 @@ GDRIVE_FILES = {
     "target_encoder.pkl": "1hqlt69U4H3sf1b3wGhKCQ-W0QcT6YKHk",
 }
 
-# Download missing files
-for filename, file_id in GDRIVE_FILES.items():
-    path = os.path.join(MODELS_DIR, filename)
-    if not os.path.exists(path):
-        gdown.download(f"https://drive.google.com/uc?id={file_id}", path, quiet=False)
-
-# Load model artifacts
-MODEL_PATH = os.path.join(MODELS_DIR, "final_random_forest.pkl")
-COLUMNS_PATH = os.path.join(MODELS_DIR, "model_columns.pkl")
-ENCODER_PATH = os.path.join(MODELS_DIR, "target_encoder.pkl")
-
-model = joblib.load(MODEL_PATH)
-model_columns = joblib.load(COLUMNS_PATH)
-
-# Include preprocessing
+# Add preprocessing module to path
 sys.path.append(os.path.join(BASE_DIR, "src"))
 from preprocessing import preprocess_data
 
-app = FastAPI()
 
 # Input schema
 class PatientData(BaseModel):
@@ -86,10 +73,38 @@ class PatientData(BaseModel):
     change: str
     diabetesMed: str
 
+
+def download_models():
+    """Download missing model files from Google Drive."""
+    for filename, file_id in GDRIVE_FILES.items():
+        path = os.path.join(MODELS_DIR, filename)
+        if not os.path.exists(path):
+            gdown.download(f"https://drive.google.com/uc?id={file_id}", path, quiet=False)
+
+
+def load_models():
+    """Load model artifacts."""
+    model_path = os.path.join(MODELS_DIR, "final_random_forest.pkl")
+    columns_path = os.path.join(MODELS_DIR, "model_columns.pkl")
+    encoder_path = os.path.join(MODELS_DIR, "target_encoder.pkl")
+
+    model = joblib.load(model_path)
+    model_columns = joblib.load(columns_path)
+    encoder = joblib.load(encoder_path)
+
+    return model, model_columns, encoder
+
+
 @app.post("/predict")
 def predict(data: PatientData):
     try:
-        # Use model_dump() for Pydantic v2 compatibility
+        # Download model files if needed
+        download_models()
+
+        # Load models
+        model, model_columns, encoder = load_models()
+
+        # Format input
         input_df = pd.DataFrame([data.model_dump()])
 
         # Preprocess
