@@ -20,12 +20,23 @@ GDRIVE_FILES = {
     "target_encoder.pkl": "1hqlt69U4H3sf1b3wGhKCQ-W0QcT6YKHk",
 }
 
-# Add preprocessing module to path
+# Model paths
+MODEL_PATH = os.path.join(MODELS_DIR, "final_random_forest.pkl")
+COLUMNS_PATH = os.path.join(MODELS_DIR, "model_columns.pkl")
+ENCODER_PATH = os.path.join(MODELS_DIR, "target_encoder.pkl")
+
+# Function to download missing models
+def ensure_models_exist():
+    for filename, file_id in GDRIVE_FILES.items():
+        path = os.path.join(MODELS_DIR, filename)
+        if not os.path.exists(path):
+            gdown.download(f"https://drive.google.com/uc?id={file_id}", path, quiet=False)
+
+# Add src/ to path and import preprocessing
 sys.path.append(os.path.join(BASE_DIR, "src"))
 from preprocessing import preprocess_data
 
-
-# Input schema
+# Define input schema
 class PatientData(BaseModel):
     race: str
     gender: str
@@ -73,46 +84,22 @@ class PatientData(BaseModel):
     change: str
     diabetesMed: str
 
-
-def download_models():
-    """Download missing model files from Google Drive."""
-    for filename, file_id in GDRIVE_FILES.items():
-        path = os.path.join(MODELS_DIR, filename)
-        if not os.path.exists(path):
-            gdown.download(f"https://drive.google.com/uc?id={file_id}", path, quiet=False)
-
-
-def load_models():
-    """Load model artifacts."""
-    model_path = os.path.join(MODELS_DIR, "final_random_forest.pkl")
-    columns_path = os.path.join(MODELS_DIR, "model_columns.pkl")
-    encoder_path = os.path.join(MODELS_DIR, "target_encoder.pkl")
-
-    model = joblib.load(model_path)
-    model_columns = joblib.load(columns_path)
-    encoder = joblib.load(encoder_path)
-
-    return model, model_columns, encoder
-
-
 @app.post("/predict")
 def predict(data: PatientData):
     try:
-        # Download model files if needed
-        download_models()
+        # Lazy download
+        ensure_models_exist()
 
         # Load models
-        model, model_columns, encoder = load_models()
+        model = joblib.load(MODEL_PATH)
+        model_columns = joblib.load(COLUMNS_PATH)
 
-        # Format input
+        # Preprocess input
         input_df = pd.DataFrame([data.model_dump()])
-
-        # Preprocess
         X = preprocess_data(input_df, training=False)
 
         # Predict
         prediction = model.predict(X)[0]
-
         return {"prediction": int(prediction)}
 
     except Exception as e:
